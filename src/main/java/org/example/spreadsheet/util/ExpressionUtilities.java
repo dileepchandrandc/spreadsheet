@@ -13,19 +13,25 @@ public class ExpressionUtilities {
         if (!validateExpression(expression)) {
             throw new InvalidExpression("Cell value is not a valid expression");
         }
-        String postfixExpression = infixToPostfix(expression.substring(1));
+        List<String> postfixExpression = infixToPostfix(expression.substring(1));
+        System.out.println(postfixExpression);
         return evaluatePostfixExpression(postfixExpression, sheet);
     }
 
-    private static Integer evaluatePostfixExpression(String postfixExpression, Map<String, Cell<?>> sheet) throws InvalidExpression{
+    private static Integer evaluatePostfixExpression(List<String> postfixExpression, Map<String, Cell<?>> sheet) throws InvalidExpression{
         Stack<Integer> stack = new Stack<>();
-        String[] items = postfixExpression.split(",");
-        for (int i = 0; i < items.length; i++) {
-            String currentItem = items[i];
+        for (int i = 0; i < postfixExpression.size(); i++) {
+            String currentItem = postfixExpression.get(i);
             if (currentItem.length() == 1 && isOperator(currentItem.charAt(0))) {
                 Integer second = stack.pop();
-                Integer first = stack.pop();
-                stack.push(computeValue(first, second, currentItem.charAt(0)));
+                if (stack.isEmpty() && (currentItem.charAt(0) == '+' || currentItem.charAt(0) == '-')) {
+                    stack.push(computeValue(0, second, currentItem.charAt(0)));
+                } else if(!stack.isEmpty()) {
+                    Integer first = stack.pop();
+                    stack.push(computeValue(first, second, currentItem.charAt(0)));
+                } else {
+                    throw new InvalidExpression("Invalid expression");
+                }
             }
             else {
                 Cell<?> cell = sheet.get(currentItem);
@@ -37,7 +43,7 @@ public class ExpressionUtilities {
                         throw new InvalidExpression("Cell value is not a valid number");
                     }
                 } else {
-                    throw new InvalidExpression("Cell value is null");
+                    throw new InvalidExpression("Cell value is null : " + currentItem);
                 }
             }
         }
@@ -58,34 +64,45 @@ public class ExpressionUtilities {
                 return null;
         }
     }
-    private static String infixToPostfix(String expression) throws InvalidExpression{
+    private static List<String> infixToPostfix(String expression) throws InvalidExpression{
         Stack<Character> stack = new Stack<>();
-        String postfix = "";
         int length = expression.length();
+        String operand = "";
+        List<String> outExpression = new ArrayList<>();
         for (int i = 0; i < length; i++) {
             char currentChar = expression.charAt(i);
+            if (i == length - 1 && operand != "") {
+                outExpression.add(operand);
+                operand = "";
+            }
             if (currentChar == '(') {
                 stack.push(currentChar);
             } else if (currentChar == ')'){
+                if (operand != "") {
+                    outExpression.add(operand);
+                    operand = "";
+                }
                 if (!stack.isEmpty()) {
                     char top = stack.pop();
-                    postfix += ",";
-                    postfix += top;
+                    outExpression.add(String.valueOf(top));
                     while (!stack.isEmpty() && stack.peek() != '(') {
-                        postfix += ",";
-                        postfix += top;
+                        outExpression.add(String.valueOf(top));
                         top = stack.pop();
                     }
                     stack.pop();
                 }
             } else if (isOperator(currentChar)) {
+                if (operand != "") {
+                    outExpression.add(operand);
+                    operand = "";
+                }
                 if (!stack.isEmpty()) {
                     if (stack.peek() != '(') {
                         int currentOpPrecedence = getPrecedence(currentChar);
                         int currentStackTopPrecedence = getPrecedence(stack.peek());
                         while (currentOpPrecedence > currentStackTopPrecedence) {
-                            postfix += ",";
-                            postfix += stack.pop();
+                            char top = stack.pop();
+                            outExpression.add(String.valueOf(top));
                             if (!stack.isEmpty() && stack.peek() != '(') {
                                 currentOpPrecedence = getPrecedence(currentChar);
                                 currentStackTopPrecedence = getPrecedence(stack.peek());
@@ -95,17 +112,16 @@ public class ExpressionUtilities {
                         }
                     }
                 }
-                postfix += ",";
                 stack.push(currentChar);
             } else {
-                postfix += currentChar;
+                operand += currentChar;
             }
         }
         while(!stack.isEmpty()) {
-            postfix += ",";
-            postfix += stack.pop();
+            char top = stack.pop();
+            outExpression.add(String.valueOf(top));
         }
-        return postfix;
+        return outExpression;
     }
 
     private static boolean isOperator(char character) {
@@ -120,8 +136,8 @@ public class ExpressionUtilities {
     }
 
     public static boolean validateExpression(String expression) {
-        // TODO : Replace the regular expression with correct one
-        Pattern pattern = Pattern.compile(".", Pattern.CASE_INSENSITIVE);
+        String basePattern = "[A-Z]{1,3}\\d{1,7}";
+        Pattern pattern = Pattern.compile("^=[-+]?(\\()*([-+]?" + basePattern + ")+((\\))*[-+/*](\\()*[-+]?" + basePattern + ")*(\\))*$");
         Matcher matcher = pattern.matcher(expression);
         return matcher.find();
     }
