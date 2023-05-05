@@ -14,7 +14,6 @@ public class ExpressionUtilities {
             throw new InvalidExpression("Cell value is not a valid expression");
         }
         List<String> postfixExpression = infixToPostfix(expression.substring(1));
-        System.out.println(postfixExpression);
         return evaluatePostfixExpression(postfixExpression, sheet);
     }
 
@@ -72,6 +71,7 @@ public class ExpressionUtilities {
         for (int i = 0; i < length; i++) {
             char currentChar = expression.charAt(i);
             if (i == length - 1 && operand != "") {
+                if (currentChar != ')') operand += currentChar;
                 outExpression.add(operand);
                 operand = "";
             }
@@ -136,10 +136,12 @@ public class ExpressionUtilities {
     }
 
     private static boolean validateExpression(String expression) {
+        if (!validateParenthesis(expression))
+            return false;
         String basePattern = "[A-Z]{1,3}\\d{1,7}";
         Pattern pattern = Pattern.compile("^=[-+]?(\\()*([-+]?" + basePattern + ")+((\\))*[-+/*](\\()*[-+]?" + basePattern + ")*(\\))*$");
         Matcher matcher = pattern.matcher(expression);
-        return validateParenthesis(expression) && matcher.find();
+        return matcher.find();
     }
 
     private static boolean validateParenthesis(String expression) {
