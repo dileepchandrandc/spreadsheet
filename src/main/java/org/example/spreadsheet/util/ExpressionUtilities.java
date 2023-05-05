@@ -135,10 +135,29 @@ public class ExpressionUtilities {
         throw new InvalidExpression("Invalid operator");
     }
 
-    public static boolean validateExpression(String expression) {
+    private static boolean validateExpression(String expression) {
         String basePattern = "[A-Z]{1,3}\\d{1,7}";
         Pattern pattern = Pattern.compile("^=[-+]?(\\()*([-+]?" + basePattern + ")+((\\))*[-+/*](\\()*[-+]?" + basePattern + ")*(\\))*$");
         Matcher matcher = pattern.matcher(expression);
-        return matcher.find();
+        return validateParenthesis(expression) && matcher.find();
+    }
+
+    private static boolean validateParenthesis(String expression) {
+        Stack<Character> stack = new Stack<>();
+        for (int i = 0; i < expression.length(); i++) {
+            char currentChar = expression.charAt(i);
+            if (currentChar == '('){
+                stack.push(currentChar);
+            } else if (currentChar == ')') {
+                if (stack.isEmpty()) {
+                    return false;
+                }
+                char top = stack.pop();
+                if (top != '(') {
+                    return false;
+                }
+            }
+        }
+        return stack.isEmpty();
     }
 }
